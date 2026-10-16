@@ -19,13 +19,34 @@ MongoClient.connect(url, { useNewUrlParser: true }, (err, client) => {
   const db = client.db(dbName);
   const collection = db.collection(collectionName);
 
-  app.post('/resetpassword/:id', (req, res) => {
-    const userId = req.params.id;
-    const newPassword = req.body.password;
+  app.post('/resetpassword/:id', async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const newPassword = req.body.password;
 
-    // TODO: Implement password reset functionality here
+      if (!newPassword) {
+        return res.status(400).send('Password is required');
+      }
 
-    res.send('Password reset successful');
+      // Invalid id can never match a user -> 404
+      if (!ObjectId.isValid(userId)) {
+        return res.status(404).send('User not found');
+      }
+
+      const result = await collection.updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: { password: newPassword } }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).send('User not found');
+      }
+
+      res.status(200).send('Password reset successful');
+    } catch (e) {
+      console.log(e);
+      res.status(500).send('Internal server error');
+    }
   });
 
   app.listen(port, () => {
